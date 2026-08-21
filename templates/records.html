@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}Records{% endblock %}
+{% block page_title %}Attendance Records{% endblock %}
+
+{% block content %}
+<!-- Filters Row -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label fw-semibold small">Date</label>
+                <input type="date" id="dateFilter" class="form-control form-control-sm">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold small">Department</label>
+                <select id="deptFilter" class="form-select form-select-sm">
+                    <option value="">All Departments</option>
+                    {% for dept in departments %}
+                    <option>{{ dept }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label fw-semibold small">Search</label>
+                <input type="text" id="searchFilter" class="form-control form-control-sm" placeholder="Name or Student ID...">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-primary btn-sm w-100" onclick="loadRecords()">
+                    <i class="bi bi-search me-1"></i>Search
+                </button>
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-success btn-sm w-100" onclick="exportCSV()">
+                    <i class="bi bi-download me-1"></i>Export CSV
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Records Table -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0"><i class="bi bi-clipboard-data-fill text-primary me-2"></i>Attendance Records</h5>
+        <span class="badge bg-primary" id="recordCount">Loading...</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Distance (m)</th>
+                        <th>Location Status</th>
+                        <th>Attendance</th>
+                    </tr>
+                </thead>
+                <tbody id="recordsBody">
+                    <tr><td colspan="9" class="text-center text-muted py-4">
+                        <div class="spinner-border spinner-border-sm me-2"></div>Loading records...
+                    </td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function loadRecords() {
+    const date = document.getElementById('dateFilter').value;
+    const dept = document.getElementById('deptFilter').value;
+    const search = document.getElementById('searchFilter').value;
+    const params = new URLSearchParams({date, department: dept, search});
+    const tbody = document.getElementById('recordsBody');
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2"></div>Loading...</td></tr>';
+    try {
+        const res = await fetch('/api/records?' + params);
+        const records = await res.json();
+        document.getElementById('recordCount').textContent = records.length + ' records';
+        if (records.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center text-muted py-4">No records found.</td></tr>';
+            return;
+        }
+        tbody.innerHTML = records.map((r, i) => `
+            <tr>
+                <td>${i+1}</td>
+                <td><code>${r.student_id}</code></td>
+                <td class="fw-semibold">${r.name}</td>
+                <td><span class="badge bg-primary-subtle text-primary">${r.department}</span></td>
+                <td>${r.date}</td>
+                <td>${r.time}</td>
+                <td>${r.distance_from_authorized != null ? r.distance_from_authorized.toFixed(1) + 'm' : '---'}</td>
+                <td><span class="badge ${r.location_status === 'Within Range' ? 'bg-success' : r.location_status === 'Out of Range' ? 'bg-danger' : 'bg-secondary'}">
+                    <i class="bi bi-geo-alt-fill me-1"></i>${r.location_status || '---'}
+                </span></td>
+                <td><span class="badge ${r.attendance_status === 'Present' ? 'bg-success' : 'bg-danger'}">${r.attendance_status}</span></td>
+            </tr>`).join('');
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="9" class="text-center text-danger py-4">Error loading records.</td></tr>';
+    }
+}
+
+function exportCSV() {
+    const date = document.getElementById('dateFilter').value;
+    const dept = document.getElementById('deptFilter').value;
+    window.location.href = `/api/export_csv?date=${date}&department=${encodeURIComponent(dept)}`;
+}
+
+loadRecords();
+</script>
+{% endblock %}

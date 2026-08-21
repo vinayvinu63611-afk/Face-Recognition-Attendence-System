@@ -1,0 +1,10 @@
+import sqlite3
+conn = sqlite3.connect('database/attendance.db')
+tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+print('Tables:', [t[0] for t in tables])
+admin = conn.execute('SELECT username FROM admin').fetchall()
+print('Admin accounts:', [a[0] for a in admin])
+settings = conn.execute('SELECT * FROM settings').fetchall()
+print('Settings:', [dict(zip([d[0] for d in conn.execute('SELECT * FROM settings').description], row)) for row in settings])
+conn.close()
+print('Database OK!')

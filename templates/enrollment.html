@@ -1,0 +1,324 @@
+{% extends 'base.html' %}
+{% block title %}Enrollment{% endblock %}
+{% block page_title %}Student Enrollment{% endblock %}
+
+{% block content %}
+
+<!-- ══════════════════════════════════════════════════
+     VERIFICATION CODE GATE — shown on page load
+     Hides the entire enrollment form until unlocked
+══════════════════════════════════════════════════ -->
+<div id="verifyGate" class="verify-gate">
+    <div class="verify-card">
+        <!-- Icon -->
+        <div class="verify-icon-ring mb-4">
+            <i class="bi bi-shield-lock-fill text-primary" style="font-size: 2.5rem;"></i>
+        </div>
+        <h4 class="fw-bold mb-1">Enrollment Access</h4>
+        <p class="text-muted small mb-4">Enter the verification code to access<br>the Student Enrollment page.</p>
+
+        <!-- Code input -->
+        <div class="verify-input-group mb-3" id="codeBoxRow">
+            <input type="password" id="verifyCode" class="form-control text-center fw-bold fs-5 letter-spacing"
+                   maxlength="20" placeholder="••••"
+                   autocomplete="off" style="letter-spacing: 0.4em;">
+            <button type="button" class="verify-eye-btn" onclick="toggleCodeVisibility()" title="Show/Hide">
+                <i class="bi bi-eye" id="verifyEyeIcon"></i>
+            </button>
+        </div>
+
+        <!-- Error message -->
+        <div id="verifyError" class="alert alert-danger py-2 small mb-3" style="display:none;"></div>
+
+        <!-- Attempts counter -->
+        <div id="attemptsInfo" class="text-muted x-small mb-3"></div>
+
+        <!-- Submit button -->
+        <button id="verifyBtn" class="btn btn-primary w-100 mb-2" onclick="submitVerifyCode()">
+            <i class="bi bi-unlock-fill me-2"></i>Verify & Enter
+        </button>
+        <div class="text-center">
+            <small class="text-muted">Contact your administrator for the code.</small>
+        </div>
+    </div>
+</div>
+
+<!-- Main enrollment content — hidden until verified -->
+<div id="enrollmentContent" style="display:none;">
+<div class="row g-4">
+    <!-- Form Column -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-person-plus-fill me-2"></i>Student Information</h5>
+            </div>
+            <div class="card-body">
+                <form id="enrollmentForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Student Name <span class="text-danger">*</span></label>
+                        <input type="text" id="name" class="form-control" placeholder="Enter full name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Student ID / Register Number <span class="text-danger">*</span></label>
+                        <input type="text" id="student_id" class="form-control" placeholder="e.g., CS2021001" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Department <span class="text-danger">*</span></label>
+                        <select id="department" class="form-select" required>
+                            <option value="">Select Department</option>
+                            <option>Computer Science</option>
+                            <option>Electronics</option>
+                            <option>Mechanical</option>
+                            <option>Civil</option>
+                            <option>Electrical</option>
+                            <option>Information Technology</option>
+                            <option>AI & Machine Learning</option>
+                        </select>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col">
+                            <label class="form-label fw-semibold">Year <span class="text-danger">*</span></label>
+                            <select id="year" class="form-select" required>
+                                <option value="">Year</option>
+                                <option>1st Year</option>
+                                <option>2nd Year</option>
+                                <option>3rd Year</option>
+                                <option>4th Year</option>
+                            </select>
+                        </div>
+                        <div class="col">
+                            <label class="form-label fw-semibold">Section <span class="text-danger">*</span></label>
+                            <select id="section" class="form-select" required>
+                                <option value="">Section</option>
+                                <option>A</option>
+                                <option>B</option>
+                                <option>C</option>
+                                <option>D</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Email</label>
+                        <input type="email" id="email" class="form-control" placeholder="student@college.edu">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            Phone Number
+                            <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;">SMS Alerts</span>
+                        </label>
+                        <div class="input-group">
+                            <span class="input-group-text">
+                                <img src="https://flagcdn.com/16x12/in.png" alt="IN" class="me-1">+91
+                            </span>
+                            <input type="tel" id="phone_number" class="form-control"
+                                   placeholder="10-digit mobile number"
+                                   maxlength="10" pattern="[0-9]{10}"
+                                   title="Enter 10-digit Indian mobile number">
+                        </div>
+                        <div class="form-text">
+                            <i class="bi bi-shield-check text-success me-1"></i>
+                            If absent, an SMS alert will be sent to this number automatically.
+                        </div>
+                    </div>
+                    <div class="alert alert-info d-flex align-items-center" role="alert">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        <small>Capture at least <strong>5 face images</strong> from different angles for better recognition accuracy.</small>
+                    </div>
+                    <button type="button" id="enrollBtn" class="btn btn-primary w-100" disabled>
+                        <i class="bi bi-check-circle-fill me-2"></i>Enroll Student (<span id="captureCount">0</span>/5)
+                    </button>
+                </form>
+                <div id="resultAlert" class="mt-3" style="display:none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Webcam Column -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-camera-fill text-primary me-2"></i>Face Capture</h5>
+            </div>
+            <div class="card-body">
+                <!-- Camera controls -->
+                <div class="d-flex gap-2 mb-3">
+                    <button id="startCam" class="btn btn-success"><i class="bi bi-camera-video-fill me-1"></i>Start Camera</button>
+                    <button id="stopCam" class="btn btn-secondary" disabled><i class="bi bi-camera-video-off me-1"></i>Stop Camera</button>
+                    <button id="captureBtn" class="btn btn-primary" disabled><i class="bi bi-camera me-1"></i>Capture</button>
+                    <button id="clearBtn" class="btn btn-outline-danger" disabled><i class="bi bi-trash me-1"></i>Clear</button>
+                </div>
+
+                <!-- Video preview -->
+                <div class="webcam-container position-relative mb-3">
+                    <video id="video" class="webcam-video w-100" autoplay playsinline></video>
+                    <canvas id="overlay" class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events:none;"></canvas>
+                    <div id="noCamera" class="webcam-placeholder">
+                        <i class="bi bi-camera-video-off fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">Camera not started</p>
+                    </div>
+                </div>
+
+                <!-- Capture progress -->
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="fw-semibold small">Captured Images:</span>
+                    <div class="progress flex-grow-1" style="height: 8px;">
+                        <div id="captureProgress" class="progress-bar bg-success" style="width: 0%"></div>
+                    </div>
+                    <span id="captureCount2" class="small text-muted">0/10</span>
+                </div>
+
+                <!-- Thumbnail strip -->
+                <div id="thumbnailStrip" class="d-flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+    </div>
+</div>
+</div><!-- /row g-4 -->
+</div><!-- /enrollmentContent -->
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/enrollment.js') }}"></script>
+<script>
+/* ─────────────────────────────────────────────
+   Enrollment Verification Code Gate Logic
+───────────────────────────────────────────── */
+let verifyAttempts = 0;
+const MAX_ATTEMPTS = 5;
+let lockUntil = null;
+
+// On page load — check if already verified this session
+window.addEventListener('DOMContentLoaded', () => {
+    // Support pressing Enter key in the code field
+    document.getElementById('verifyCode').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitVerifyCode();
+    });
+    // Auto-focus the code input
+    document.getElementById('verifyCode').focus();
+});
+
+async function submitVerifyCode() {
+    const btn = document.getElementById('verifyBtn');
+    const input = document.getElementById('verifyCode');
+    const errorEl = document.getElementById('verifyError');
+    const attemptsEl = document.getElementById('attemptsInfo');
+
+    const code = input.value.trim();
+
+    // Check lockout
+    if (lockUntil && Date.now() < lockUntil) {
+        const secsLeft = Math.ceil((lockUntil - Date.now()) / 1000);
+        errorEl.style.display = 'block';
+        errorEl.innerHTML = `<i class="bi bi-lock-fill me-1"></i>Too many attempts. Try again in <strong>${secsLeft}s</strong>.`;
+        shakeCard();
+        return;
+    }
+
+    if (!code) {
+        errorEl.style.display = 'block';
+        errorEl.innerHTML = '<i class="bi bi-exclamation-circle me-1"></i>Please enter the verification code.';
+        input.focus();
+        return;
+    }
+
+    // Loading state
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Verifying...';
+    errorEl.style.display = 'none';
+
+    try {
+        const res = await fetch('/api/verify_enrollment_code', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            // ✅ Correct code — animate unlock and reveal form
+            btn.innerHTML = '<i class="bi bi-check-circle-fill me-2"></i>Access Granted!';
+            btn.className = 'btn btn-success w-100 mb-2';
+            document.getElementById('verifyGate').classList.add('verify-gate-exit');
+            setTimeout(() => {
+                document.getElementById('verifyGate').style.display = 'none';
+                const content = document.getElementById('enrollmentContent');
+                content.style.display = 'block';
+                content.classList.add('fade-in');
+            }, 600);
+        } else {
+            // ❌ Wrong code
+            verifyAttempts++;
+            const remaining = MAX_ATTEMPTS - verifyAttempts;
+
+            errorEl.style.display = 'block';
+            errorEl.innerHTML = `<i class="bi bi-x-circle-fill me-1"></i>${data.message}`;
+
+            if (remaining > 0 && remaining <= 3) {
+                attemptsEl.textContent = `⚠ ${remaining} attempt${remaining === 1 ? '' : 's'} remaining before lockout.`;
+                attemptsEl.style.color = '#dc2626';
+            }
+
+            if (verifyAttempts >= MAX_ATTEMPTS) {
+                // Lock for 60 seconds
+                lockUntil = Date.now() + 60000;
+                errorEl.innerHTML = '<i class="bi bi-lock-fill me-1"></i>Too many wrong attempts. Locked for <strong>60 seconds</strong>.';
+                btn.disabled = true;
+                btn.innerHTML = '<i class="bi bi-lock-fill me-2"></i>Locked';
+                input.disabled = true;
+                // Countdown timer
+                const lockInterval = setInterval(() => {
+                    if (Date.now() >= lockUntil) {
+                        clearInterval(lockInterval);
+                        verifyAttempts = 0;
+                        lockUntil = null;
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="bi bi-unlock-fill me-2"></i>Verify & Enter';
+                        btn.className = 'btn btn-primary w-100 mb-2';
+                        input.disabled = false;
+                        input.value = '';
+                        input.focus();
+                        errorEl.style.display = 'none';
+                        attemptsEl.textContent = '';
+                    } else {
+                        const secsLeft = Math.ceil((lockUntil - Date.now()) / 1000);
+                        errorEl.innerHTML = `<i class="bi bi-lock-fill me-1"></i>Locked — try again in <strong>${secsLeft}s</strong>.`;
+                    }
+                }, 1000);
+            } else {
+                // Reset button, clear input
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-unlock-fill me-2"></i>Verify & Enter';
+                input.value = '';
+                input.focus();
+                shakeCard();
+            }
+        }
+    } catch (e) {
+        errorEl.style.display = 'block';
+        errorEl.innerHTML = '<i class="bi bi-wifi-off me-1"></i>Network error. Please check your connection.';
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-unlock-fill me-2"></i>Verify & Enter';
+    }
+}
+
+function toggleCodeVisibility() {
+    const input = document.getElementById('verifyCode');
+    const icon = document.getElementById('verifyEyeIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'bi bi-eye-slash';
+    } else {
+        input.type = 'password';
+        icon.className = 'bi bi-eye';
+    }
+}
+
+function shakeCard() {
+    const card = document.querySelector('.verify-card');
+    card.classList.remove('shake');
+    void card.offsetWidth; // reflow to restart animation
+    card.classList.add('shake');
+}
+</script>
+{% endblock %}

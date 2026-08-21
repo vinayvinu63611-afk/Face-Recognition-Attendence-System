@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Stat Cards -->
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="stat-icon bg-primary-soft">
+                    <i class="bi bi-people-fill text-primary fs-3"></i>
+                </div>
+                <div>
+                    <div class="stat-label">Total Students</div>
+                    <div class="stat-value" id="totalStudents">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="stat-icon bg-success-soft">
+                    <i class="bi bi-person-check-fill text-success fs-3"></i>
+                </div>
+                <div>
+                    <div class="stat-label">Present Today</div>
+                    <div class="stat-value text-success" id="presentToday">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="stat-icon bg-danger-soft">
+                        <i class="bi bi-person-x-fill text-danger fs-3"></i>
+                    </div>
+                    <div>
+                        <div class="stat-label">Absent Today</div>
+                        <div class="stat-value text-danger" id="absentToday">—</div>
+                    </div>
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="openAbsentModal()" title="View and Notify Absent Students">
+                    <i class="bi bi-whatsapp me-1"></i>Notify
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="stat-card card border-0 shadow-sm h-100">
+            <div class="card-body d-flex align-items-center gap-3">
+                <div class="stat-icon bg-warning-soft">
+                    <i class="bi bi-percent text-warning fs-3"></i>
+                </div>
+                <div>
+                    <div class="stat-label">Attendance %</div>
+                    <div class="stat-value text-warning" id="attendancePct">—</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attendance Percentage Bar -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="d-flex justify-content-between mb-2">
+            <span class="fw-semibold">Today's Attendance Rate</span>
+            <span id="pctLabel">0%</span>
+        </div>
+        <div class="progress" style="height: 12px; border-radius: 6px;">
+            <div class="progress-bar bg-gradient" id="pctBar" role="progressbar" style="width: 0%; background: linear-gradient(90deg, #6C63FF, #22c55e);"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart-fill text-primary me-2"></i>Daily Attendance (Last 7 Days)</h6>
+            </div>
+            <div class="card-body"><canvas id="dailyChart" height="120"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-graph-up-arrow text-success me-2"></i>Weekly Trend</h6>
+            </div>
+            <div class="card-body"><canvas id="weeklyChart"></canvas></div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-calendar-month text-warning me-2"></i>Monthly Attendance</h6>
+            </div>
+            <div class="card-body"><canvas id="monthlyChart" height="120"></canvas></div>
+        </div>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0"><i class="bi bi-clock-history text-info me-2"></i>Recent Attendance</h6>
+                <a href="{{ url_for('records') }}" class="btn btn-outline-primary btn-sm">View All</a>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 small">
+                        <thead class="table-light">
+                            <tr><th>Name</th><th>Dept</th><th>Time</th><th>Status</th></tr>
+                        </thead>
+                        <tbody id="recentTable"><tr><td colspan="4" class="text-center text-muted py-3">Loading...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     ABSENT STUDENTS NOTIFICATION MODAL
+═══════════════════════════════════════════════════ -->
+<div class="modal fade" id="absentModal" tabindex="-1" aria-labelledby="absentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title fw-bold" id="absentModalLabel">
+                    <i class="bi bi-person-x-fill me-2"></i>Absent Students Today
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <div class="alert alert-info py-2 d-flex align-items-center mb-3">
+                    <i class="bi bi-info-circle-fill fs-5 me-2 flex-shrink-0"></i>
+                    <small>These students have not marked attendance today. You can send an instant <strong>WhatsApp Absent Alert</strong> (100% free, no API key needed) or trigger automated alerts.</small>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Student</th>
+                                <th>Dept & Year</th>
+                                <th>Parent Phone</th>
+                                <th>SMS Status</th>
+                                <th class="text-end">Instant Alert</th>
+                            </tr>
+                        </thead>
+                        <tbody id="absentTableBody">
+                            <tr><td colspan="5" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading absentees...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+                <a href="{{ url_for('settings') }}" class="btn btn-outline-primary btn-sm">
+                    <i class="bi bi-gear me-1"></i>SMS Settings
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function openAbsentModal() {
+    const modalEl = document.getElementById('absentModal');
+    const modal = new bootstrap.Modal(modalEl);
+    modal.show();
+
+    const tbody = document.getElementById('absentTableBody');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted"><span class="spinner-border spinner-border-sm me-2"></span>Loading absentees...</td></tr>';
+
+    try {
+        const res = await fetch('/api/absent_today');
+        const students = await res.json();
+
+        if (!students.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-success"><i class="bi bi-check-circle-fill me-2 fs-5"></i><strong>All students are present today!</strong> No absentees.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = students.map(s => `
+            <tr>
+                <td>
+                    <div class="fw-bold">${s.name}</div>
+                    <small class="text-muted">ID: <code>${s.student_id}</code></small>
+                </td>
+                <td>
+                    <div>${s.department}</div>
+                    <small class="text-muted">${s.year} - Sec ${s.section}</small>
+                </td>
+                <td>
+                    ${s.phone_number ? `<span class="badge bg-light text-dark border"><i class="bi bi-telephone me-1 text-primary"></i>${s.phone_number}</span>` : '<span class="text-muted small">No Phone</span>'}
+                </td>
+                <td>
+                    <span class="badge ${s.sms_status === 'sent' || s.sms_status === 'Delivered' ? 'bg-success' : 'bg-warning-subtle text-warning'}">${s.sms_status}</span>
+                </td>
+                <td class="text-end">
+                    ${s.whatsapp_url ? `
+                        <a href="${s.whatsapp_url}" target="_blank" class="btn btn-sm btn-success" title="Send WhatsApp Message (No API key needed)">
+                            <i class="bi bi-whatsapp me-1"></i>WhatsApp
+                        </a>
+                    ` : '<span class="text-muted small">—</span>'}
+                </td>
+            </tr>
+        `).join('');
+    } catch(e) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-3">Failed to load absent students list.</td></tr>';
+    }
+}
+
+async function loadDashboard() {
+    const [statsRes, reportsRes] = await Promise.all([
+        fetch('/api/dashboard_stats'),
+        fetch('/api/reports_data')
+    ]);
+    const stats = await statsRes.json();
+    const reports = await reportsRes.json();
+
+    document.getElementById('totalStudents').textContent = stats.total_students;
+    document.getElementById('presentToday').textContent = stats.present_today;
+    document.getElementById('absentToday').textContent = stats.absent_today;
+    document.getElementById('attendancePct').textContent = stats.attendance_percentage + '%';
+    document.getElementById('pctLabel').textContent = stats.attendance_percentage + '%';
+    document.getElementById('pctBar').style.width = stats.attendance_percentage + '%';
+
+    // Recent table
+    const tbody = document.getElementById('recentTable');
+    if (stats.recent_attendance.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-3">No records yet</td></tr>';
+    } else {
+        tbody.innerHTML = stats.recent_attendance.map(r => `
+            <tr>
+                <td class="fw-semibold">${r.name}</td>
+                <td><span class="badge bg-light text-dark">${r.department}</span></td>
+                <td>${r.time}</td>
+                <td><span class="badge ${r.attendance_status === 'Present' ? 'bg-success' : 'bg-danger'}">${r.attendance_status}</span></td>
+            </tr>`).join('');
+    }
+
+    const chartDefaults = {
+        borderRadius: 6,
+        borderSkipped: false
+    };
+
+    // Daily chart
+    new Chart(document.getElementById('dailyChart'), {
+        type: 'bar',
+        data: {
+            labels: reports.daily.labels,
+            datasets: [{
+                label: 'Present Students',
+                data: reports.daily.data,
+                backgroundColor: 'rgba(108, 99, 255, 0.8)',
+                ...chartDefaults
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+
+    // Weekly chart
+    new Chart(document.getElementById('weeklyChart'), {
+        type: 'line',
+        data: {
+            labels: reports.weekly.labels,
+            datasets: [{
+                label: 'Weekly Attendance',
+                data: reports.weekly.data,
+                borderColor: '#22c55e',
+                backgroundColor: 'rgba(34,197,94,0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+
+    // Monthly chart
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: reports.monthly.labels,
+            datasets: [{
+                label: 'Monthly Attendance',
+                data: reports.monthly.data,
+                backgroundColor: 'rgba(245,158,11,0.8)',
+                ...chartDefaults
+            }]
+        },
+        options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+    });
+}
+
+loadDashboard();
+</script>
+{% endblock %}

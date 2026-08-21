@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Students{% endblock %}
+{% block page_title %}Students Management{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+        <h5 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Enrolled Students ({{ students|length }})</h5>
+        <a href="{{ url_for('enrollment') }}" class="btn btn-primary btn-sm">
+            <i class="bi bi-person-plus-fill me-1"></i>Enroll New Student
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Search -->
+        <div class="mb-3">
+            <input type="text" id="searchInput" class="form-control" placeholder="Search by name, ID, or department...">
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="studentsTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Department</th>
+                        <th>Year</th>
+                        <th>Section</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Enrolled At</th>
+                        <th>Face Data</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if students %}
+                    {% for s in students %}
+                    <tr>
+                        <td>{{ loop.index }}</td>
+                        <td><code>{{ s.student_id }}</code></td>
+                        <td class="fw-semibold">{{ s.name }}</td>
+                        <td><span class="badge bg-primary-subtle text-primary">{{ s.department }}</span></td>
+                        <td>{{ s.year }}</td>
+                        <td>{{ s.section }}</td>
+                        <td>{{ s.email or '—' }}</td>
+                        <td>
+                            {% if s.phone_number %}
+                                <span class="badge bg-success-subtle text-success">
+                                    <i class="bi bi-telephone-fill me-1"></i>{{ s.phone_number }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted small">—</span>
+                            {% endif %}
+                        </td>
+                        <td><small class="text-muted">{{ s.created_at[:10] if s.created_at else '—' }}</small></td>
+                        <td><span class="badge bg-success"><i class="bi bi-check-circle me-1"></i>Enrolled</span></td>
+                        <td>
+                            <div class="d-flex gap-1">
+                                {% if s.phone_number %}
+                                <a href="https://wa.me/{{ s.phone_number.replace('+','').replace(' ','').replace('-','') }}?text=Dear%20Parent,%20attendance%20update%20for%20{{ s.name }}%20(ID:%20{{ s.student_id }}):%20Please%20check%20student%20attendance."
+                                   target="_blank" class="btn btn-outline-success btn-sm" title="Send WhatsApp Message">
+                                    <i class="bi bi-whatsapp"></i>
+                                </a>
+                                {% endif %}
+                                <a href="{{ url_for('student_report', student_id=s.student_id) }}"
+                                   class="btn btn-primary btn-sm" title="View Attendance Report">
+                                    <i class="bi bi-file-earmark-bar-graph"></i>
+                                </a>
+                                <a href="{{ url_for('download_student_pdf', student_id=s.student_id) }}"
+                                   class="btn btn-danger btn-sm" title="Download PDF Report">
+                                    <i class="bi bi-file-earmark-pdf"></i>
+                                </a>
+                                <button class="btn btn-outline-danger btn-sm"
+                                        onclick="deleteStudent('{{ s.student_id }}', '{{ s.name }}')"
+                                        title="Delete Student">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% else %}
+                    <tr>
+                        <td colspan="11" class="text-center text-muted py-5">
+                            <i class="bi bi-people fs-1 d-block mb-2"></i>
+                            No students enrolled yet. <a href="{{ url_for('enrollment') }}">Enroll your first student</a>.
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete student <strong id="deleteStudentName"></strong>?</p>
+                <p class="text-danger small">This will also delete all their attendance records and face data. This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">Delete Student</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let deleteStudentId = null;
+const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+
+function deleteStudent(studentId, name) {
+    deleteStudentId = studentId;
+    document.getElementById('deleteStudentName').textContent = name;
+    deleteModal.show();
+}
+
+document.getElementById('confirmDelete').addEventListener('click', async function() {
+    if (!deleteStudentId) return;
+    const btn = this;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Deleting...';
+    try {
+        const resp = await fetch(`/api/delete_student/${deleteStudentId}`, { method: 'POST' });
+        const data = await resp.json();
+        if (data.success) {
+            deleteModal.hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    } catch(e) {
+        alert('Network error. Please try again.');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = 'Delete Student';
+    }
+});
+
+// Search
+document.getElementById('searchInput').addEventListener('input', function() {
+    const q = this.value.toLowerCase();
+    document.querySelectorAll('#studentsTable tbody tr').forEach(row => {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

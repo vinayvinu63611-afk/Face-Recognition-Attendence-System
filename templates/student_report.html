@@ -1,0 +1,456 @@
+{% extends 'base.html' %}
+{% block title %}Report - {{ student.name }}{% endblock %}
+{% block page_title %}Student Attendance Report{% endblock %}
+
+{% block content %}
+<!-- Top action bar -->
+<div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-4">
+    <div>
+        <a href="{{ url_for('students') }}" class="btn btn-outline-secondary btn-sm me-2">
+            <i class="bi bi-arrow-left me-1"></i>Back to Students
+        </a>
+        <span class="text-muted small">Individual Report for <strong>{{ student.name }}</strong></span>
+    </div>
+    <div class="d-flex gap-2">
+        {% if student.phone_number %}
+        <a href="https://wa.me/{{ student.phone_number.replace('+','').replace(' ','').replace('-','') }}?text=Dear%20Parent,%20Attendance%20Report%20Alert%20for%20{{ student.name }}%20(ID:%20{{ student.student_id }}).%20Please%20contact%20the%20college."
+           target="_blank" class="btn btn-success btn-sm" title="Send WhatsApp Absent Alert">
+            <i class="bi bi-whatsapp me-1"></i>WhatsApp Alert
+        </a>
+        {% endif %}
+        <button class="btn btn-outline-primary btn-sm" onclick="window.print()">
+            <i class="bi bi-printer me-1"></i>Print
+        </button>
+        <a href="{{ url_for('download_student_pdf', student_id=student.student_id) }}"
+           class="btn btn-danger btn-sm" id="pdfBtn">
+            <i class="bi bi-file-earmark-pdf-fill me-1"></i>Download PDF
+        </a>
+    </div>
+</div>
+
+<!-- Student Profile Card -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <div class="row align-items-center g-3">
+            <div class="col-auto">
+                <div class="student-avatar-lg">
+                    {{ student.name[0].upper() }}
+                </div>
+            </div>
+            <div class="col">
+                <h4 class="fw-bold mb-1">{{ student.name }}</h4>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-primary-subtle text-primary">
+                        <i class="bi bi-person-badge me-1"></i>{{ student.student_id }}
+                    </span>
+                    <span class="badge bg-secondary-subtle text-secondary">
+                        <i class="bi bi-building me-1"></i>{{ student.department }}
+                    </span>
+                    <span class="badge bg-info-subtle text-info">
+                        <i class="bi bi-calendar3 me-1"></i>{{ student.year }}
+                    </span>
+                    <span class="badge bg-success-subtle text-success">
+                        <i class="bi bi-grid me-1"></i>Section {{ student.section }}
+                    </span>
+                    {% if student.email %}
+                    <span class="badge bg-warning-subtle text-warning">
+                        <i class="bi bi-envelope me-1"></i>{{ student.email }}
+                    </span>
+                    {% endif %}
+                    {% if student.phone_number %}
+                    <span class="badge bg-success-subtle text-success">
+                        <i class="bi bi-telephone-fill me-1"></i>{{ student.phone_number }}
+                        <span class="ms-1" style="font-size:0.6rem;opacity:0.8;">SMS Alerts ON</span>
+                    </span>
+                    {% else %}
+                    <span class="badge bg-secondary-subtle text-secondary">
+                        <i class="bi bi-telephone-x me-1"></i>No phone — SMS alerts disabled
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-auto text-end">
+                <!-- Overall % ring (filled by JS) -->
+                <div class="pct-ring-wrapper">
+                    <svg viewBox="0 0 80 80" class="pct-ring-svg">
+                        <circle cx="40" cy="40" r="32" fill="none" stroke="#e2e8f0" stroke-width="7"/>
+                        <circle cx="40" cy="40" r="32" fill="none" stroke="#6C63FF" stroke-width="7"
+                                stroke-linecap="round" stroke-dasharray="201" stroke-dashoffset="201"
+                                id="pctRingCircle" style="transition:stroke-dashoffset 1s ease; transform:rotate(-90deg);transform-origin:center;"/>
+                    </svg>
+                    <div class="pct-ring-label" id="pctRingLabel">—%</div>
+                </div>
+                <div class="text-muted small mt-1">Attendance Rate</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Stats Row -->
+<div class="row g-3 mb-4" id="summaryRow">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100 text-center">
+            <div class="card-body py-3">
+                <div class="fs-1 fw-bold text-success" id="statPresent">—</div>
+                <div class="text-muted small">Days Present</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100 text-center">
+            <div class="card-body py-3">
+                <div class="fs-1 fw-bold text-danger" id="statAbsent">—</div>
+                <div class="text-muted small">Days Absent</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100 text-center">
+            <div class="card-body py-3">
+                <div class="fs-1 fw-bold text-primary" id="statTracked">—</div>
+                <div class="text-muted small">Days Tracked</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100 text-center">
+            <div class="card-body py-3">
+                <div class="fs-1 fw-bold text-warning" id="statPct">—</div>
+                <div class="text-muted small">Attendance %</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <!-- Monthly Chart -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0"><i class="bi bi-calendar-month text-primary me-2"></i>Monthly Attendance (Last 12 Months)</h6>
+                <span class="badge bg-primary-subtle text-primary small">Monthly View</span>
+            </div>
+            <div class="card-body">
+                <canvas id="monthlyChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Monthly Table -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-table text-success me-2"></i>Monthly Summary</h6>
+            </div>
+            <div class="card-body p-0" style="max-height:320px;overflow-y:auto;">
+                <table class="table table-sm table-hover mb-0 small">
+                    <thead class="table-light sticky-top">
+                        <tr>
+                            <th>Month</th>
+                            <th class="text-center">Present</th>
+                            <th class="text-center">Working</th>
+                            <th class="text-center">%</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthlyTableBody">
+                        <tr><td colspan="4" class="text-center text-muted py-3">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Weekly Chart -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0"><i class="bi bi-bar-chart-fill text-warning me-2"></i>Weekly Attendance (Last 12 Weeks)</h6>
+                <span class="badge bg-warning-subtle text-warning small">Weekly View</span>
+            </div>
+            <div class="card-body">
+                <canvas id="weeklyChart" height="130"></canvas>
+            </div>
+        </div>
+    </div>
+    <!-- Weekly Day Grid -->
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-0 pt-3">
+                <h6 class="fw-bold mb-0"><i class="bi bi-calendar-week text-warning me-2"></i>Weekly Day-by-Day</h6>
+            </div>
+            <div class="card-body p-0" style="max-height:320px;overflow-y:auto;" id="weeklyGrid">
+                <div class="text-center text-muted py-4">Loading...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Full Attendance Log -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0"><i class="bi bi-list-check text-info me-2"></i>Complete Attendance Log</h6>
+        <span class="badge bg-info-subtle text-info" id="logCount">Loading...</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height:400px;overflow-y:auto;">
+            <table class="table table-hover table-sm align-middle mb-0 small">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th>#</th>
+                        <th>Date</th>
+                        <th>Day</th>
+                        <th>Time</th>
+                        <th>Location Status</th>
+                        <th>Distance</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                    <tr><td colspan="7" class="text-center text-muted py-3">Loading...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<style>
+.student-avatar-lg {
+    width: 72px; height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6C63FF, #1e1b4b);
+    color: white;
+    font-size: 2rem;
+    font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 4px 14px rgba(108,99,255,0.35);
+}
+.pct-ring-wrapper {
+    position: relative; width: 80px; height: 80px; margin: 0 auto;
+}
+.pct-ring-svg { width: 80px; height: 80px; }
+.pct-ring-label {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.85rem; font-weight: 700; color: #6C63FF;
+}
+.day-dot {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 0.65rem; font-weight: 600;
+}
+.day-dot.present { background: #d1fae5; color: #15803d; }
+.day-dot.absent  { background: #f1f5f9; color: #94a3b8; }
+@media print {
+    #sidebar, .top-navbar, .btn, .card-header .badge { display: none !important; }
+    .card { box-shadow: none !important; border: 1px solid #e2e8f0 !important; }
+}
+</style>
+<script>
+const STUDENT_ID = "{{ student.student_id }}";
+
+async function loadReport() {
+    const res  = await fetch(`/api/student/${STUDENT_ID}/attendance_data`);
+    const data = await res.json();
+
+    // ── Summary ────────────────────────────────────
+    const s = data.summary;
+    document.getElementById('statPresent').textContent = s.total_present;
+    document.getElementById('statAbsent').textContent  = s.absent_days;
+    document.getElementById('statTracked').textContent = s.total_days_tracked;
+    document.getElementById('statPct').textContent     = s.attendance_percentage + '%';
+
+    // Ring animation
+    const pct    = s.attendance_percentage;
+    const circ   = 201; // 2 * π * 32
+    const offset = circ - (pct / 100) * circ;
+    document.getElementById('pctRingCircle').style.strokeDashoffset = offset;
+    const ringColor = pct >= 75 ? '#22c55e' : pct >= 50 ? '#f59e0b' : '#ef4444';
+    document.getElementById('pctRingCircle').style.stroke = ringColor;
+    document.getElementById('pctRingLabel').textContent = pct + '%';
+    document.getElementById('pctRingLabel').style.color = ringColor;
+
+    // ── Monthly Chart ─────────────────────────────
+    const mLabels = data.monthly.map(m => m.month);
+    const mData   = data.monthly.map(m => m.present);
+    const mPct    = data.monthly.map(m => m.percentage);
+
+    new Chart(document.getElementById('monthlyChart'), {
+        type: 'bar',
+        data: {
+            labels: mLabels,
+            datasets: [
+                {
+                    label: 'Days Present',
+                    data: mData,
+                    backgroundColor: mPct.map(p =>
+                        p >= 75 ? 'rgba(34,197,94,0.8)' :
+                        p >= 50 ? 'rgba(245,158,11,0.8)' :
+                                  'rgba(239,68,68,0.8)'
+                    ),
+                    borderRadius: 6,
+                    borderSkipped: false,
+                    yAxisID: 'y'
+                },
+                {
+                    label: 'Attendance %',
+                    data: mPct,
+                    type: 'line',
+                    borderColor: '#6C63FF',
+                    backgroundColor: 'rgba(108,99,255,0.1)',
+                    fill: false,
+                    tension: 0.4,
+                    pointRadius: 4,
+                    yAxisID: 'y2'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } },
+            scales: {
+                y:  { beginAtZero: true, title: { display: true, text: 'Days Present' }, ticks: { stepSize: 1 } },
+                y2: { beginAtZero: true, max: 100, position: 'right', title: { display: true, text: '%' },
+                      grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+
+    // ── Monthly Table ─────────────────────────────
+    const mtbody = document.getElementById('monthlyTableBody');
+    mtbody.innerHTML = data.monthly.map(m => {
+        const pClass = m.percentage >= 75 ? 'text-success' : m.percentage >= 50 ? 'text-warning' : m.percentage > 0 ? 'text-danger' : 'text-muted';
+        const bgClass = m.percentage >= 75 ? 'table-success' : m.percentage >= 50 ? 'table-warning' : m.percentage > 0 ? 'table-danger' : '';
+        return `<tr class="${bgClass}" style="opacity:${m.percentage > 0 ? 1 : 0.5}">
+            <td class="fw-semibold">${m.month}</td>
+            <td class="text-center fw-bold ${pClass}">${m.present}</td>
+            <td class="text-center text-muted">${m.working_days}</td>
+            <td class="text-center"><span class="badge ${m.percentage>=75?'bg-success':m.percentage>=50?'bg-warning text-dark':'bg-danger'}">${m.percentage}%</span></td>
+        </tr>`;
+    }).join('');
+
+    // ── Weekly Chart ──────────────────────────────
+    const wLabels = data.weekly.map(w => w.week_label);
+    const wData   = data.weekly.map(w => w.present);
+    const wPct    = data.weekly.map(w => Math.round(w.present / w.total * 100));
+
+    new Chart(document.getElementById('weeklyChart'), {
+        type: 'bar',
+        data: {
+            labels: wLabels,
+            datasets: [
+                {
+                    label: 'Days Present',
+                    data: wData,
+                    backgroundColor: wPct.map(p =>
+                        p >= 75 ? 'rgba(34,197,94,0.8)' :
+                        p >= 50 ? 'rgba(245,158,11,0.8)' :
+                                  'rgba(239,68,68,0.8)'
+                    ),
+                    borderRadius: 6, borderSkipped: false
+                },
+                {
+                    label: 'Attendance %',
+                    data: wPct,
+                    type: 'line',
+                    borderColor: '#6C63FF',
+                    backgroundColor: 'rgba(108,99,255,0.08)',
+                    fill: true, tension: 0.4, pointRadius: 3,
+                    yAxisID: 'y2'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12 } } },
+            scales: {
+                y:  { beginAtZero: true, max: 6, ticks: { stepSize: 1 }, title: { display: true, text: 'Days Present' } },
+                y2: { beginAtZero: true, max: 100, position: 'right', title: { display: true, text: '%' },
+                      grid: { drawOnChartArea: false } }
+            }
+        }
+    });
+
+    // ── Weekly Day Grid ───────────────────────────
+    const grid = document.getElementById('weeklyGrid');
+    grid.innerHTML = `<table class="table table-sm mb-0 small">
+        <thead class="table-light sticky-top">
+            <tr>
+                <th style="min-width:130px">Week</th>
+                <th class="text-center">Mon</th><th class="text-center">Tue</th>
+                <th class="text-center">Wed</th><th class="text-center">Thu</th>
+                <th class="text-center">Fri</th><th class="text-center">Sat</th>
+                <th class="text-center">%</th>
+            </tr>
+        </thead>
+        <tbody>
+        ${data.weekly.map(w => {
+            const pct2 = Math.round(w.present / w.total * 100);
+            const days = w.days.map(d =>
+                `<td class="text-center">
+                    <span class="day-dot ${d.present ? 'present' : 'absent'}" title="${d.date}">
+                        ${d.present ? '✓' : d.date <= new Date().toISOString().slice(0,10) ? '✗' : '·'}
+                    </span>
+                </td>`
+            ).join('');
+            return `<tr>
+                <td class="fw-semibold" style="font-size:0.75rem;">${w.week_label}</td>
+                ${days}
+                <td class="text-center">
+                    <span class="badge ${pct2>=75?'bg-success':pct2>=50?'bg-warning text-dark':'bg-danger'}" style="font-size:0.7rem;">
+                        ${pct2}%
+                    </span>
+                </td>
+            </tr>`;
+        }).join('')}
+        </tbody>
+    </table>`;
+
+    // ── Attendance Log ────────────────────────────
+    const logBody = document.getElementById('logTableBody');
+    document.getElementById('logCount').textContent = `${data.records.length} records`;
+    if (data.records.length === 0) {
+        logBody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-4">
+            <i class="bi bi-calendar-x fs-3 d-block mb-2"></i>No attendance records found.</td></tr>`;
+    } else {
+        const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+        logBody.innerHTML = [...data.records].reverse().map((rec, i) => {
+            const d = new Date(rec.date + 'T00:00:00');
+            const dayName = days[d.getDay()];
+            const dist = rec.distance_from_authorized != null ? rec.distance_from_authorized.toFixed(1) + ' m' : '—';
+            const locBadge = rec.location_status === 'Within Range'
+                ? `<span class="badge bg-success">${rec.location_status}</span>`
+                : rec.location_status
+                    ? `<span class="badge bg-secondary">${rec.location_status}</span>` : '—';
+            return `<tr>
+                <td class="text-muted">${data.records.length - i}</td>
+                <td class="fw-semibold">${rec.date}</td>
+                <td class="text-muted">${dayName}</td>
+                <td>${rec.time || '—'}</td>
+                <td>${locBadge}</td>
+                <td class="text-muted">${dist}</td>
+                <td><span class="badge bg-success">${rec.attendance_status || 'Present'}</span></td>
+            </tr>`;
+        }).join('');
+    }
+}
+
+// PDF download with loading state
+document.getElementById('pdfBtn').addEventListener('click', function(e) {
+    const btn = this;
+    const orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Generating PDF...';
+    btn.classList.add('disabled');
+    setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.classList.remove('disabled');
+    }, 4000);
+});
+
+loadReport();
+</script>
+{% endblock %}

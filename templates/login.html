@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - FaceAttend AI Attendance System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+        .login-container { width: 100%; max-width: 900px; padding: 20px; }
+        .login-card {
+            background: rgba(255,255,255,0.95);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            min-height: 500px;
+        }
+        .login-left {
+            background: linear-gradient(135deg, #6C63FF 0%, #3f3d56 100%);
+            padding: 50px 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            flex: 1;
+        }
+        .login-left .icon-ring {
+            width: 100px; height: 100px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.3);
+            display: flex; align-items: center; justify-content: center;
+            margin-bottom: 24px;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.3); }
+            50% { box-shadow: 0 0 0 15px rgba(255,255,255,0); }
+        }
+        .login-right { padding: 50px 40px; flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        .form-control:focus { border-color: #6C63FF; box-shadow: 0 0 0 0.25rem rgba(108,99,255,0.25); }
+        .btn-login {
+            background: linear-gradient(135deg, #6C63FF, #764ba2);
+            border: none; color: white; padding: 12px;
+            border-radius: 10px; font-weight: 600;
+            transition: all 0.3s;
+        }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(108,99,255,0.4); color: white; }
+        .input-group-text { background: #f8f9fa; border-right: none; }
+        .form-control { border-left: none; }
+        .form-control:focus + .input-group-text { border-color: #6C63FF; }
+        @media (max-width: 768px) { .login-left { display: none; } }
+    </style>
+</head>
+<body>
+<div class="login-container">
+    <div class="login-card">
+        <!-- Left branding panel -->
+        <div class="login-left">
+            <div class="icon-ring">
+                <i class="bi bi-camera-video-fill" style="font-size: 2.5rem;"></i>
+            </div>
+            <h2 class="fw-bold mb-2">FaceAttend</h2>
+            <p class="text-center opacity-75">AI-Powered Face Recognition<br>Attendance Management System</p>
+            <div class="mt-4 d-flex gap-3 flex-wrap justify-content-center">
+                <div class="text-center">
+                    <i class="bi bi-shield-check-fill fs-4 mb-1 d-block"></i>
+                    <small>Secure</small>
+                </div>
+                <div class="text-center">
+                    <i class="bi bi-lightning-fill fs-4 mb-1 d-block"></i>
+                    <small>Real-time</small>
+                </div>
+                <div class="text-center">
+                    <i class="bi bi-geo-alt-fill fs-4 mb-1 d-block"></i>
+                    <small>Location-aware</small>
+                </div>
+            </div>
+        </div>
+        <!-- Right login form -->
+        <div class="login-right">
+            <div class="mb-4">
+                <h3 class="fw-bold text-dark">Welcome Back</h3>
+                <p class="text-muted">Sign in to your admin account</p>
+            </div>
+            {% if error %}
+            <div class="alert alert-danger d-flex align-items-center" role="alert">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                {{ error }}
+            </div>
+            {% endif %}
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="mb-3">
+                    <label class="form-label fw-semibold">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person-fill text-muted"></i></span>
+                        <input type="text" name="username" class="form-control" placeholder="Enter username" required autofocus>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock-fill text-muted"></i></span>
+                        <input type="password" name="password" id="password" class="form-control" placeholder="Enter password" required>
+                        <button type="button" class="input-group-text bg-white border-start-0" onclick="togglePassword()">
+                            <i class="bi bi-eye" id="eyeIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-login w-100 mb-3">
+                    <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+                </button>
+                <div class="text-center">
+                    <small class="text-muted">Default credentials: <code>admin / admin123</code></small>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function togglePassword() {
+    const pwd = document.getElementById('password');
+    const icon = document.getElementById('eyeIcon');
+    if (pwd.type === 'password') { pwd.type = 'text'; icon.className = 'bi bi-eye-slash'; }
+    else { pwd.type = 'password'; icon.className = 'bi bi-eye'; }
+}
+</script>
+</body>
+</html>

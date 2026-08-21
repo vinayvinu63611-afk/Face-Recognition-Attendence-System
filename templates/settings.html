@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% block title %}Settings{% endblock %}
+{% block page_title %}Location Settings{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-geo-alt-fill text-warning me-2"></i>Authorized Location Configuration</h5>
+            </div>
+            <div class="card-body">
+                <div id="settingsAlert" style="display:none;"></div>
+                <form id="settingsForm">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Authorized Latitude</label>
+                        <input type="number" step="0.000001" id="latitude" class="form-control"
+                               value="{{ settings.latitude }}" placeholder="e.g., 13.0827">
+                        <div class="form-text">Latitude of your college/classroom location.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Authorized Longitude</label>
+                        <input type="number" step="0.000001" id="longitude" class="form-control"
+                               value="{{ settings.longitude }}" placeholder="e.g., 80.2707">
+                        <div class="form-text">Longitude of your college/classroom location.</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Allowed Radius (meters)</label>
+                        <input type="number" step="1" min="10" id="allowed_radius" class="form-control"
+                               value="{{ settings.allowed_radius }}" placeholder="100">
+                        <div class="form-text">Maximum distance (meters) allowed from the authorized location.</div>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">Face Recognition Confidence Threshold</label>
+                        <input type="number" step="1" min="20" max="150" id="confidence_threshold" class="form-control"
+                               value="{{ settings.confidence_threshold }}" placeholder="70">
+                        <div class="form-text">LBPH threshold (lower value = stricter matching). Recommended: 50-80.</div>
+                    </div>
+
+                    <!-- Enrollment Verification Code -->
+                    <hr class="my-4">
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold">
+                            <i class="bi bi-shield-lock-fill text-primary me-1"></i>
+                            Enrollment Verification Code
+                        </label>
+                        <div class="input-group">
+                            <input type="password" id="enrollment_code" class="form-control"
+                                   value="{{ settings.enrollment_code or '1234' }}"
+                                   placeholder="Enter code (min 4 characters)"
+                                   maxlength="20" autocomplete="off">
+                            <button type="button" class="btn btn-outline-secondary" onclick="toggleEnrollCode()" title="Show/Hide">
+                                <i class="bi bi-eye" id="enrollCodeEye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">
+                            This code is required before anyone can access the Enrollment page.
+                            Minimum <strong>4 characters</strong>. Share only with authorized staff.
+                        </div>
+                    </div>
+
+                    <button type="button" class="btn btn-primary" onclick="saveSettings()">
+                        <i class="bi bi-save-fill me-2"></i>Save Settings
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary ms-2" id="gpsBtn" onclick="useMyLocation()">
+                        <i class="bi bi-geo-alt-fill me-1"></i>Use My Current Location
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-info-circle-fill text-info me-2"></i>Current Configuration</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm">
+                    <tr><th>Latitude</th><td id="curLat">{{ settings.latitude }}</td></tr>
+                    <tr><th>Longitude</th><td id="curLon">{{ settings.longitude }}</td></tr>
+                    <tr><th>Allowed Radius</th><td id="curRadius">{{ settings.allowed_radius }} m</td></tr>
+                    <tr><th>Confidence Threshold</th><td id="curThreshold">{{ settings.confidence_threshold }}</td></tr>
+                    <tr>
+                        <th><i class="bi bi-shield-lock-fill text-primary me-1"></i>Enrollment Code</th>
+                        <td id="curCode">•••• ({{ (settings.enrollment_code or '1234')|length }} chars)</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-question-circle-fill text-secondary me-2"></i>How to Find Your Location</h5>
+            </div>
+            <div class="card-body">
+                <ol class="small text-muted">
+                    <li>Open <a href="https://maps.google.com" target="_blank">Google Maps</a>.</li>
+                    <li>Right-click on your college/classroom location.</li>
+                    <li>Click on the coordinates shown at the top of the menu.</li>
+                    <li>Copy the latitude and longitude values.</li>
+                    <li>Or click <strong>Use My Current Location</strong> button above.</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function saveSettings() {
+    const payload = {
+        latitude: parseFloat(document.getElementById('latitude').value),
+        longitude: parseFloat(document.getElementById('longitude').value),
+        allowed_radius: parseFloat(document.getElementById('allowed_radius').value),
+        confidence_threshold: parseFloat(document.getElementById('confidence_threshold').value),
+        enrollment_code: document.getElementById('enrollment_code').value.trim()
+    };
+    const alertEl = document.getElementById('settingsAlert');
+    try {
+        const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        alertEl.style.display = 'block';
+        alertEl.className = `alert alert-${data.success ? 'success' : 'danger'}`;
+        alertEl.innerHTML = `<i class="bi bi-${data.success ? 'check-circle' : 'exclamation-triangle'}-fill me-2"></i>${data.message}`;
+        if (data.success) {
+            document.getElementById('curLat').textContent = payload.latitude;
+            document.getElementById('curLon').textContent = payload.longitude;
+            document.getElementById('curRadius').textContent = payload.allowed_radius + ' m';
+            document.getElementById('curThreshold').textContent = payload.confidence_threshold;
+            document.getElementById('curCode').textContent = '••••' + ' (' + payload.enrollment_code.length + ' chars)';
+        }
+    } catch(e) {
+        alertEl.style.display = 'block';
+        alertEl.className = 'alert alert-danger';
+        alertEl.textContent = 'Network error. Please try again.';
+    }
+}
+
+function toggleEnrollCode() {
+    const input = document.getElementById('enrollment_code');
+    const icon = document.getElementById('enrollCodeEye');
+    if (input.type === 'password') { input.type = 'text'; icon.className = 'bi bi-eye-slash'; }
+    else { input.type = 'password'; icon.className = 'bi bi-eye'; }
+}
+
+function useMyLocation() {
+    const btn = document.getElementById('gpsBtn');
+    const alertEl = document.getElementById('settingsAlert');
+
+    // Check support
+    if (!navigator.geolocation) {
+        alertEl.style.display = 'block';
+        alertEl.className = 'alert alert-danger';
+        alertEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill me-2"></i>Geolocation is not supported by your browser. Please enter coordinates manually.';
+        return;
+    }
+
+    // Show loading state on button
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status"></span>Getting Location...';
+
+    // Show info banner while waiting
+    alertEl.style.display = 'block';
+    alertEl.className = 'alert alert-info';
+    alertEl.innerHTML = '<i class="bi bi-geo-alt-fill me-2"></i>Requesting your GPS location. Please allow location access when prompted by your browser...';
+
+    navigator.geolocation.getCurrentPosition(
+        // SUCCESS
+        (pos) => {
+            const lat = pos.coords.latitude.toFixed(6);
+            const lon = pos.coords.longitude.toFixed(6);
+            const acc = pos.coords.accuracy ? pos.coords.accuracy.toFixed(1) + ' m' : 'N/A';
+
+            // Fill the form fields
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lon;
+
+            // Highlight the fields briefly
+            ['latitude', 'longitude'].forEach(id => {
+                const el = document.getElementById(id);
+                el.style.transition = 'background 0.3s';
+                el.style.background = '#d1fae5';
+                setTimeout(() => { el.style.background = ''; }, 1500);
+            });
+
+            // Show success message with all details
+            alertEl.className = 'alert alert-success';
+            alertEl.innerHTML = `
+                <div class="d-flex align-items-start gap-2">
+                    <i class="bi bi-check-circle-fill fs-5 mt-1 flex-shrink-0"></i>
+                    <div>
+                        <strong>Location captured successfully!</strong><br>
+                        <table class="table table-sm table-borderless mb-1 mt-1" style="font-size:0.85rem;">
+                            <tr><td class="text-muted pe-3">Latitude</td><td><code>${lat}</code></td></tr>
+                            <tr><td class="text-muted pe-3">Longitude</td><td><code>${lon}</code></td></tr>
+                            <tr><td class="text-muted pe-3">Accuracy</td><td><span class="badge bg-${pos.coords.accuracy < 50 ? 'success' : pos.coords.accuracy < 200 ? 'warning' : 'danger'}">${acc}</span></td></tr>
+                        </table>
+                        <small class="text-muted">Fields have been pre-filled. Click <strong>Save Settings</strong> to apply.</small>
+                    </div>
+                </div>`;
+
+            // Restore button
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-geo-alt-fill me-1"></i>Use My Current Location';
+        },
+
+        // ERROR
+        (err) => {
+            let msg = '';
+            let helpText = '';
+            switch (err.code) {
+                case err.PERMISSION_DENIED:
+                    msg = 'Location permission denied.';
+                    helpText = 'To fix: Click the <strong>lock icon</strong> in your browser address bar → Site settings → Location → Allow. Then refresh and try again.';
+                    break;
+                case err.POSITION_UNAVAILABLE:
+                    msg = 'Location information is unavailable.';
+                    helpText = 'Your device could not determine its location. Try again or enter coordinates manually from <a href="https://maps.google.com" target="_blank">Google Maps</a>.';
+                    break;
+                case err.TIMEOUT:
+                    msg = 'Location request timed out.';
+                    helpText = 'GPS signal was too weak. Move to an open area or enter coordinates manually.';
+                    break;
+                default:
+                    msg = 'An unknown error occurred.';
+                    helpText = 'Please enter coordinates manually.';
+            }
+            alertEl.style.display = 'block';
+            alertEl.className = 'alert alert-danger';
+            alertEl.innerHTML = `
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                <strong>${msg}</strong><br>
+                <small>${helpText}</small>`;
+
+            // Restore button
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-geo-alt-fill me-1"></i>Use My Current Location';
+        },
+
+        // OPTIONS — high accuracy, 15 second timeout
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+}
+</script>
+{% endblock %}

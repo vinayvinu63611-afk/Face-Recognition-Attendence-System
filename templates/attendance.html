@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+{% block title %}Attendance{% endblock %}
+{% block page_title %}Face Recognition Attendance{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Webcam Panel -->
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0"><i class="bi bi-camera-fill text-primary me-2"></i>Live Face Recognition</h5>
+                <div id="statusBadge" class="badge bg-secondary">Camera Off</div>
+            </div>
+            <div class="card-body">
+                <div class="d-flex gap-2 mb-3">
+                    <button id="startBtn" class="btn btn-success"><i class="bi bi-camera-video-fill me-1"></i>Start Recognition</button>
+                    <button id="stopBtn" class="btn btn-secondary" disabled><i class="bi bi-stop-circle me-1"></i>Stop</button>
+                    <button id="markBtn" class="btn btn-primary" disabled><i class="bi bi-check-circle me-1"></i>Mark Attendance</button>
+                </div>
+
+                <!-- Location Status Bar -->
+                <div id="locationBar" class="alert alert-info d-flex align-items-center mb-3" style="display:none;">
+                    <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                    <small>Getting your location...</small>
+                </div>
+
+                <!-- Video -->
+                <div class="webcam-container position-relative">
+                    <video id="video" class="webcam-video w-100" autoplay playsinline></video>
+                    <canvas id="overlay" class="position-absolute top-0 start-0 w-100 h-100" style="pointer-events:none;"></canvas>
+                    <div id="noCamera" class="webcam-placeholder">
+                        <i class="bi bi-camera-video-off fs-1 text-muted"></i>
+                        <p class="text-muted mt-2">Click <strong>Start Recognition</strong> to begin</p>
+                        <p class="text-muted small">Camera and location permissions will be requested.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Panel -->
+    <div class="col-lg-5">
+        <!-- Recognition Result -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-3">
+                <h5 class="fw-bold mb-0"><i class="bi bi-person-badge-fill text-success me-2"></i>Recognition Result</h5>
+            </div>
+            <div class="card-body">
+                <div id="resultCard" class="text-center py-3">
+                    <i class="bi bi-person-circle text-muted" style="font-size: 4rem;"></i>
+                    <p class="text-muted mt-2">Awaiting face scan...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Location Info -->
+        <div class="card border-0 shadow-sm mb-4">
+            <div class="card-header bg-white border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="fw-bold mb-0"><i class="bi bi-geo-alt-fill text-warning me-2"></i>Location Status</h5>
+                <button id="refreshLocationBtn" class="btn btn-outline-warning btn-sm" onclick="refreshLocation()" title="Refresh GPS Location">
+                    <i class="bi bi-arrow-repeat me-1"></i>Refresh
+                </button>
+            </div>
+            <div class="card-body">
+                <div id="locationPanelAlert" style="display:none;" class="alert mb-3 py-2 small"></div>
+                <div id="locationInfo">
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <span><i class="bi bi-pin-map me-1"></i>Your Location</span>
+                        <span id="userCoords" class="fw-semibold text-dark">---</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <span><i class="bi bi-bullseye me-1"></i>GPS Accuracy</span>
+                        <span id="gpsAccuracy">---</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small mb-2">
+                        <span><i class="bi bi-rulers me-1"></i>Distance</span>
+                        <span id="distanceInfo">---</span>
+                    </div>
+                    <div class="d-flex justify-content-between text-muted small">
+                        <span><i class="bi bi-shield-check me-1"></i>Status</span>
+                        <span id="locationStatus">---</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attendance Alert -->
+        <div id="attendanceAlert" style="display:none;"></div>
+
+        <!-- Today's Count -->
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <div class="fs-1 fw-bold text-primary" id="todayCount">0</div>
+                <div class="text-muted">Students Marked Today</div>
+                <div class="text-muted small" id="todayDate"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
+{% endblock %}
